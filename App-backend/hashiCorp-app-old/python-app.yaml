@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: python-app
+  template:
+    metadata:
+      labels:
+        app: python-app
+    spec:
+      containers:
+      - name: python-app
+        ## image: hashicorp/http-echo
+        image: 316336724953.dkr.ecr.us-west-2.amazonaws.com/http-echo:latest
+
+        args:
+        - "-text=Hello from Python app lab"
+        ports:
+        - containerPort: 5678
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-app-service
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: python-app
+  ports:
+  - port: 80
+    targetPort: 5678

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-app
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: frontend-app
+  template:
+    metadata:
+      labels:
+        app: frontend-app
+      annotations:
+        redeploy-timestamp: "{{ now | date "2006-01-02_15:04:05" }}"
+        
+    spec:
+      containers:
+      - name: frontend-app
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+        ports:
+        - containerPort: 5000
+
+        env:
+        - name: BACKEND_URL
+          value: {{ .Values.env.BACKEND_URL | quote }}
+
+        - name: POLL_SECONDS
+          value: {{ .Values.env.POLL_SECONDS | quote }}
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 10
+          periodSeconds: 20

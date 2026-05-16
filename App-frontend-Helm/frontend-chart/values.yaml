@@ -1,0 +1,32 @@
+replicaCount: 1
+
+image:
+  repository: 316336724953.dkr.ecr.us-west-2.amazonaws.com/frontend-lab
+  tag: "1.0.3"
+  pullPolicy: Always
+
+env:
+  BACKEND_URL: "http://flask-app-service.default.svc.cluster.local/"
+  POLL_SECONDS: "5"
+
+service:
+  port: 80
+  targetPort: 5000
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:316336724953:certificate/03b53f8b-cd37-452f-a5ad-109d549ffda2
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    xxx: "222222222"
+
+  path: /
+  pathType: Prefix

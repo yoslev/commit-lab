@@ -1,0 +1,1 @@
+openssl req -x509 -nodes -days 365 -newkey rsa:2048  -keyout alb-selfsigned.key  -out alb-selfsigned.crt  -subj "/CN=internal-k8s-default-pythonap-a1aaa1c30f-7677500.us-west-2.elb.amazonaws.com"

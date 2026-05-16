@@ -1,0 +1,33 @@
+replicaCount: 2
+
+image:
+  repository: 316336724953.dkr.ecr.us-west-2.amazonaws.com/flask-lab
+  tag: "1.1.2"
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 5000
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:123456789012:certificate/4b12f103-f06f-4659-8981-c0c325df5710
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/scheme: internal
+    xxx: "yyy"
+
+  path: /
+  pathType: Prefix
+
+env:
+  DB_HOST: "database-1.cluster-c560wq46g27z.us-west-2.rds.amazonaws.com"
+  DB_PORT: "5432"
+  DB_NAME: "postgres"
+  DB_USER: "postgres"
+  DB_PASSWORD: "Aa123456"
+  BE_VER_NO: "7"

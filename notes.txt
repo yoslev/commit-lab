@@ -1,0 +1,497 @@
+User name		Password		Console sign-in URL
+candidate02	%ssecU0$	        https://316336724953.signin.aws.amazon.com/console
+
+Doit1234!
+
+Access key:  AKIAUTJZDLPM7B53XMUM
+Secret key:   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
+--------------------------
+aws configure
+--------------------------
+
+terraform init
+terraform plan
+terraform apply
+terraform apply -auto-approve
+--------------------------
+WIN EC2
+# open a remote management session to the EC2 instance through AWS Systems Manager Session Manager.
+aws ssm start-session --target <windows-instance-id>
+aws ssm start-session --target  i-08ca2b292fedc5db2
+   You’ll get a PowerShell terminal into the Windows machine.
+   run inside PS:  
+           net user Administrator AwsLab123!
+
+OR to see full Windows GUI:
+aws ssm start-session   --target i-08ca2b292fedc5db2   --document-name AWS-StartPortForwardingSession   --parameters "{\"portNumber\":[\"3389\"],\"localPortNumber\":[\"13389\"]}"
+
+Then:
+
+keep that terminal open
+open Windows Remote Desktop (mstsc)
+connect to: localhost:13389
+
+RUN: 
+   mstsc 
+      localhost:13389
+      Administrator / AwsLab123!
+
+     Ctrl + Alt + FN + SCRLK
+     Ctrl + Alt + FN + Break
+
+Then you’ll see the actual Windows desktop and can open Chrome.
+--------------------------
+ALB
+Configure kubeconfig:
+
+aws eks update-kubeconfig  --region us-west-2   --name lab-eks
+
+change: eks.tf 
+resource "aws_eks_cluster" "lab" {
+    ....
+    ....
+  vpc_config {
+    ....
+    ....
+    endpoint_public_access  = true ## originally was "false" - changed to allow public EKS API (kubectl + helm from my PC), Pods/Subnets = private, EKS API = public + can be restricted
+  }
+
+Test:
+kubectl get pods -A
+
+FLOW: Chrome on Windows EC2 -> Internal ALB -> EKS Fargate Pods -> Python app
+
+You need 3 parts
+1. Install AWS Load Balancer Controller on EKS cluster
+
+Usually with Helm:
+
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+helm upgrade -i aws-load-balancer-controller eks/aws-load-balancer-controller   -n kube-system  --set clusterName=lab-eks  --set region=us-west-2  --set vpcId=<your-vpc-id> 
+helm upgrade -i aws-load-balancer-controller eks/aws-load-balancer-controller   -n kube-system  --set clusterName=lab-eks  --set region=us-west-2  --set vpcId=vpc-019c7005e2366e6bd
+
+install LB from ECR:
+helm upgrade -i aws-load-balancer-controller eks/aws-load-balancer-controller  -n kube-system  --set clusterName=lab-eks  --set region=us-west-2  --set vpcId=vpc-xxxxxxxx  --set image.repository=316336724953.dkr.ecr.us-west-2.amazonaws.com/aws-load-balancer-controller   --set image.tag=v3.3.0
+
+helm upgrade -i aws-load-balancer-controller eks/aws-load-balancer-controller  -n kube-system --set clusterName=lab-eks  --set region=us-west-2  --set vpcId=vpc-019c7005e2366e6bd
+  --set image.repository=316336724953.dkr.ecr.us-west-2.amazonaws.com/aws-load-balancer-controller  --set image.tag=v3.3.0  --set serviceAccount.create=false  --set serviceAccount.name=aws-load-balancer-controller  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=arn:aws:iam::316336724953:role/lab-aws-load-balancer-controller-role
+
+helm upgrade -i aws-load-balancer-controller eks/aws-load-balancer-controller  -n kube-system  --set clusterName=lab-eks  --set region=us-west-2  --set vpcId=vpc-019c7005e2366e6bd  --set image.repository=316336724953.dkr.ecr.us-west-2.amazonaws.com/aws-load-balancer-controller  --set image.tag=v3.3.0  --set serviceAccount.name=aws-load-balancer-controller
+
+aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-019c7005e2366e6bd" --query "Subnets[*].Tags"
+kubectl annotate serviceaccount aws-load-balancer-controller  -n kube-system  eks.amazonaws.com/role-arn=arn:aws:iam::316336724953:role/lab-aws-load-balancer-controller-role   --overwrite
+kubectl rollout restart deployment aws-load-balancer-controller -n kube-system
+
+kubectl logs -n kube-system deployment/aws-load-balancer-controller --tail=50
+kubectl get ingress -A
+
+GOT a problem cause 
+kubectl get pods -n kube-system
+             NAME                                           READY   STATUS             RESTARTS   AGE
+             aws-load-balancer-controller-5c9646cd8-2r5qn   0/1     ImagePullBackOff  <<== Far gate nodes have no internet access so cannot download image
+
+777====
+ECR
+1. Create private ECR repo
+   aws ecr create-repository   --repository-name aws-load-balancer-controller  --region us-west-2
+2. Pull public image to your laptop
+   docker pull public.ecr.aws/eks/aws-load-balancer-controller:v3.3.0
+3. Login to your private ECR
+   aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 316336724953.dkr.ecr.us-west-2.amazonaws.com
+
+4. Tag image for your private ECR
+   docker tag public.ecr.aws/eks/aws-load-balancer-controller:v3.3.0 316336724953.dkr.ecr.us-west-2.amazonaws.com/aws-load-balancer-controller:v3.3.0
+5. Push image
+   docker push 316336724953.dkr.ecr.us-west-2.amazonaws.com/aws-load-balancer-controller:v3.3.0
+888=====
+AWS confirms you can verify it with:
+  kubectl get deployment -n kube-system aws-load-balancer-controller
+
+==
+777*** ECR
+aws ecr create-repository --repository-name http-echo --region us-west-2
+docker pull hashicorp/http-echo
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 316336724953.dkr.ecr.us-west-2.amazonaws.com
+docker tag hashicorp/http-echo:latest 316336724953.dkr.ecr.us-west-2.amazonaws.com/http-echo:latest
+docker push 316336724953.dkr.ecr.us-west-2.amazonaws.com/http-echo:latest
+888
+2. Deploy simple Python app
+
+python-app.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-app
+  namespace: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: python-app
+  template:
+    metadata:
+      labels:
+        app: python-app
+    spec:
+      containers:
+      - name: python-app
+        ## image: hashicorp/http-echo
+        image: 316336724953.dkr.ecr.us-west-2.amazonaws.com/http-echo:latest
+        args:
+        - "-text=Hello from Python app lab"
+        ports:
+        - containerPort: 5678
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-app-service
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    app: python-app
+  ports:
+  - port: 80
+    targetPort: 5678
+
+Apply:
+
+kubectl apply -f python-app.yaml
+
+==
+3. Create internal ALB Ingress
+
+python-app-ingress.yaml
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: python-app-ingress
+  namespace: default
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internal
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: python-app-service
+            port:
+              number: 80
+
+Apply:
+
+kubectl apply -f python-app-ingress.yaml
+
+Check:
+kubectl get ingress -A
+kubectl delete ingress python-app-ingress -n default
+kubectl patch ingress python-app-ingress -n default -p "{\"metadata\":{\"finalizers\":[]}}" --type=merge
+kubectl apply -f python-app-ingress.yaml
+kubectl annotate ingress python-app-ingress -n default force-reconcile="%time%" --overwrite
+kubectl annotate ingress python-app-ingress -n default force-reconcile="%random%" --overwrite
+kubectl get ingress -A
+
+kubectl delete ingress python-app-ingress -n default
+kubectl delete service python-app-service -n default
+kubectl apply -f python-app.yaml
+kubectl apply -f python-app-ingress.yaml
+
+aws elbv2 describe-load-balancers --region us-west-2 --query "LoadBalancers[*].[LoadBalancerName,DNSName,Scheme,State.Code]"
+[]
+
+You should get an ALB DNS name + ADDRESS. <<=
+==
+ there  is no ADDRESS:
+2. Create IAM role for Load Balancer Controller
+create a file: aws-load-balancer-controller-policy.json by curl:
+  curl -o aws-load-balancer-controller-policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v3.3.0/docs/install/iam_policy.json aws iam create-policy  --policy-name AWSLoadBalancerControllerIAMPolicy  --policy-document file://aws-load-balancer-controller-policy.json
+
+Then create the IAM policy:
+   aws iam create-policy  --policy-name AWSLoadBalancerControllerIAMPolicy  --policy-document file://aws-load-balancer-controller-policy.json
+==8888
+
+
+Then from your Windows EC2 Chrome, open:
+
+http://<internal-alb-dns-name>
+----------------------------------------------
+AFTER INGRESS has an address
+http from win ec2 fails:
+http://internal-k8s-default-pythonap-a1aaa1c30f-7677500.us-west-2.elb.amazonaws.com
+
+SO:
+troubleshoot is :
+1) aws elbv2 describe-target-groups --region us-west-2 --query "TargetGroups[*].[TargetGroupName,TargetGroupArn]"
+[
+    [
+        "k8s-default-pythonap-14d82ac822",
+        "arn:aws:elasticloadbalancing:us-west-2:316336724953:targetgroup/k8s-default-pythonap-14d82ac822/6c5ee2cdefb6ef5d"
+    ]
+]
+
+
+2) aws elbv2 describe-target-health --region us-west-2 --target-group-arn arn:aws:elasticloadbalancing:us-west-2:316336724953:targetgroup/k8s-default-pythonap-14d82ac822/6c5ee2cdefb6ef5d
+{
+    "TargetHealthDescriptions": [
+        {
+            "Target": {
+                "Id": "10.0.2.154",
+                "Port": 5678,
+                "AvailabilityZone": "us-west-2b"
+            },
+            "HealthCheckPort": "5678",
+            "TargetHealth": {
+                "State": "healthy"
+            },
+            "AdministrativeOverride": {
+                "State": "no_override",
+                "Reason": "AdministrativeOverride.NoOverride",
+                "Description": "No override is currently active on target"
+            }
+        },
+        {
+            "Target": {
+                "Id": "10.0.2.4",
+                "Port": 5678,
+                "AvailabilityZone": "us-west-2b"
+            },
+            "HealthCheckPort": "5678",
+            "TargetHealth": {
+                "State": "healthy"
+            },
+            "AdministrativeOverride": {
+                "State": "no_override",
+                "Reason": "AdministrativeOverride.NoOverride",
+                "Description": "No override is currently active on target"
+            }
+        }
+    ]
+}
+
+REESULT:
+Most likely issue: the ALB security group allows 0.0.0.0/0, but your Windows EC2 security group egress only allows HTTPS 443 to VPC. You need allow outbound HTTP 80 from Windows EC2 to the VPC/ALB.
+
+Add to Windows EC2 SG in ec2-security-groups.tf :
+egress {
+  description = "Allow HTTP to internal ALB"
+  from_port   = 80
+  to_port     = 80
+  protocol    = "tcp"
+  cidr_blocks = [aws_vpc.lab.cidr_block]
+}
+===========================================
+next task in this lab:
+Configure SSL Termination on the ALB, (use self-signed certificate) 
+Thought for a couple of seconds
+
+Yes — for ALB SSL termination, do this flow:
+
+Client/Chrome → HTTPS 443 → ALB terminates SSL → HTTP 80 → Python pod
+
+1. Create self-signed cert locally
+export MSYS_NO_PATHCONV=1 
+openssl req -x509 -nodes -days 365  -newkey rsa:2048  -keyout alb-selfsigned.key  -out alb-selfsigned.crt  -subj "/CN=alb-selfsigned"  -addext "subjectAltName=DNS:internal-k8s-default-pythonap-a1aaa1c30f-7677500.us-west-2.elb.amazonaws.com"
+openssl req -x509 -nodes -days 365  -newkey rsa:2048  -keyout flask-alb.key           -out flask-alb.crt -subj "/CN=internal-k8s-default-flaskapp-adebff64ee-2117561178.us-west-2.elb.amazonaws.com"  -addext "subjectAltName=DNS:internal-k8s-default-flaskapp-adebff64ee-2117561178.us-west-2.elb.amazonaws.com"
+======================
+
+NEW FLASK APP:
+export DOMAIN="internal-k8s-default-flaskapp-adebff64ee-2117561178.us-west-2.elb.amazonaws.com"
+openssl req -x509 -nodes -days 365  -newkey rsa:2048  -keyout tls.key  -out tls.crt  -subj "/CN=flaskapp"  -addext "subjectAltName=DNS:$DOMAIN"
+
+export DOMAIN=flaskapp.commit.com
+openssl req -x509 -nodes -days 365  -newkey rsa:2048  -keyout tls.key  -out tls.crt  -subj "/CN=flaskapp"  -addext "subjectAltName=DNS:$DOMAIN"
+
+2. Import cert to ACM
+aws acm import-certificate  --region us-west-2  --certificate fileb://alb-selfsigned.crt  --private-key fileb://alb-selfsigned.key
+{
+    "CertificateArn": "arn:aws:acm:us-west-2:316336724953:certificate/df256b6c-ffb5-4491-9395-247167bd40fe"
+}
+
+NEW
+aws acm import-certificate  --certificate fileb://tls.crt  --private-key fileb://tls.key  --region us-west-2
+{
+    "CertificateArn": "arn:aws:acm:us-west-2:316336724953:certificate/216f401f-ae03-4326-9e1b-860c3809ad3b"
+}
+aws acm list-certificates --region us-west-2
+aws acm describe-certificate  --certificate-arn arn:aws:acm:us-west-2:316336724953:certificate/216f401f-ae03-4326-9e1b-860c3809ad3b --region us-west-2
+                    ==>> "DomainName": "flaskapp.commit.com"
+HTTPS:
+     https://flaskapp.lab.local
+======================
+NEXT TASK install argocd
+
+kubectl get pods -n argocd -o jsonpath="{range .items[*]}{.metadata.name}{': '}{range .spec.initContainers[*]}{.image}{' '}{end}{range .spec.containers[*]}{.image}{' '}{end}{'\n'}{end}"
+ argocd-application-controller-0: quay.io/argoproj/argocd:v3.4.2
+ argocd-applicationset-controller-bc84c94bc-rr9m9: quay.io/argoproj/argocd:v3.4.2
+ argocd-dex-server-598547cb8-l4nlf: quay.io/argoproj/argocd:v3.4.2 ghcr.io/dexidp/dex:v2.45.0
+ argocd-notifications-controller-5f59d79f8c-x6j9k: quay.io/argoproj/argocd:v3.4.2
+ argocd-redis-8b5b5b56d-h7w6c: quay.io/argoproj/argocd:v3.4.2 public.ecr.aws/docker/library/redis:8.2.3-alpine
+ argocd-repo-server-8679b7988c-vnqsw: quay.io/argoproj/argocd:v3.4.2 316336724953.dkr.ecr.us-west-2.amazonaws.com/argocd:v3.1.0
+ argocd-repo-server-ff5578b69-mwmvl: quay.io/argoproj/argocd:v3.4.2 quay.io/argoproj/argocd:v3.4.2
+ argocd-server-5f898b9cbc-gc5x8: quay.io/argoproj/argocd:v3.4.2
+ argocd-server-687f458df-tjf6v: 316336724953.dkr.ecr.us-west-2.amazonaws.com/argocd:v3.1.0
+
+Pull/tag/push:
+
+docker pull quay.io/argoproj/argocd:v3.4.2
+docker pull ghcr.io/dexidp/dex:v2.45.0
+docker pull public.ecr.aws/docker/library/redis:8.2.3-alpine
+
+docker tag quay.io/argoproj/argocd:v3.4.2 316336724953.dkr.ecr.us-west-2.amazonaws.com/argocd:v3.4.2
+docker tag ghcr.io/dexidp/dex:v2.45.0 316336724953.dkr.ecr.us-west-2.amazonaws.com/dex:v2.45.0
+docker tag public.ecr.aws/docker/library/redis:8.2.3-alpine 316336724953.dkr.ecr.us-west-2.amazonaws.com/redis:8.2.3-alpine
+
+docker push 316336724953.dkr.ecr.us-west-2.amazonaws.com/argocd:v3.4.2
+docker push 316336724953.dkr.ecr.us-west-2.amazonaws.com/dex:v2.45.0
+docker push 316336724953.dkr.ecr.us-west-2.amazonaws.com/redis:8.2.3-alpine
+
+Then patch Argo:
+
+kubectl -n argocd set image deployment/argocd-server argocd-server=316336724953.dkr.ecr.us-west-2.amazonaws.com/argocd:v3.4.2
+kubectl -n argocd set image deployment/argocd-repo-server argocd-repo-server=316336724953.dkr.ecr.us-west-2.amazonaws.com/argocd:v3.4.2
+kubectl -n argocd set image statefulset/argocd-application-controller argocd-application-controller=316336724953.dkr.ecr.us-west-2.amazonaws.com/argocd:v3.1.0
+kubectl -n argocd set image deployment/argocd-applicationset-controller argocd-applicationset-controller=316336724953.dkr.ecr.us-west-2.amazonaws.com/argocd:v3.1.0
+kubectl -n argocd set image deployment/argocd-notifications-controller argocd-notifications-controller=316336724953.dkr.ecr.us-west-2.amazonaws.com/argocd:v3.1.0
+kubectl -n argocd set image deployment/argocd-dex-server dex=316336724953.dkr.ecr.us-west-2.amazonaws.com/dex:v2.45.0
+kubectl -n argocd set image deployment/argocd-redis redis=316336724953.dkr.ecr.us-west-2.amazonaws.com/redis:8.2.3-alpine
+
+Then restart:
+
+kubectl delete pod -n argocd --all
+kubectl get pods -n argocd
+
+aws elbv2 describe-load-balancers --region us-west-2 --query "LoadBalancers[*].[LoadBalancerName,DNSName,LoadBalancerArn]"
+[
+    [
+        "k8s-default-pythonap-a1aaa1c30f",
+        "internal-k8s-default-pythonap-a1aaa1c30f-7677500.us-west-2.elb.amazonaws.com",
+        "arn:aws:elasticloadbalancing:us-west-2:316336724953:loadbalancer/app/k8s-default-pythonap-a1aaa1c30f/98f647dd9ae528eb"
+    ],
+    [
+        "k8s-argocd-argocdin-ebca04af0b",
+        "internal-k8s-argocd-argocdin-ebca04af0b-398634042.us-west-2.elb.amazonaws.com",
+        "arn:aws:elasticloadbalancing:us-west-2:316336724953:loadbalancer/app/k8s-argocd-argocdin-ebca04af0b/a906c72b115a16a1"
+    ]
+]
+
+aws elbv2 describe-listeners --load-balancer-arn arn:aws:elasticloadbalancing:us-west-2:316336724953:loadbalancer/app/k8s-argocd-argocdin-ebca04af0b/a906c72b115a16a1 --region us-west-2 --query "Listeners[*].[Port,Protocol]"
+
+from Windows ec2 inst:
+    https://internal-k8s-argocd-argocdin-ebca04af0b-398634042.us-west-2.elb.amazonaws.com/login?return_url=https%3A%2F%2Finternal-k8s-argocd-argocdin-ebca04af0b-398634042.us-west-2.elb.amazonaws.com%2Fapplications
+
+   admin / wMWuTZt3YABB-pR2
+
+$password = kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}"  [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($password))
+===================================
+FLASK + DB app
+kubectl get ingress -A
+kubectl delete ingress flask-app-ingress -n default
+kubectl patch ingress flask-app-ingress -n default -p "{\"metadata\":{\"finalizers\":[]}}" --type=merge
+kubectl apply -f flask-ingress.yaml
+kubectl annotate ingress flask-app-ingress -n default force-reconcile="%time%" --overwrite
+kubectl annotate ingress flask-app-ingress -n default force-reconcile="%random%" --overwrite
+kubectl get ingress -A
+
+kubectl delete ingress flask-app-ingress -n default
+kubectl delete service python-app-service -n default
+kubectl apply -f python-app.yaml
+kubectl apply -f flask-app-ingress.yaml
+
+kubectl delete pod -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+kubectl get pods -n kube-system | findstr aws-load-balancer
+Then force reconcile again:
+     kubectl annotate ingress flask-app-ingress -n default force-reconcile="%random%" --overwrite
+Check:
+    kubectl get ingress flask-app-ingress -n default
+
+from win ec2 browser: 
+    http://internal-k8s-default-flaskapp-adebff64ee-557340107.us-west-2.elb.amazonaws.com/
+
+===================================
+NEXT STEP - DB
+user: postgres
+
+Connection details to your database database-1:
+DB name               : postgres
+Master username: postgres
+             pass: Aa123456
+                 Manage master credentials in AWS Secrets Manager  Manage Credentials 
+Endpoint:  database-1.cluster-c560wq46g27z.us-west-2.rds.amazonaws.com
+
+aws rds modify-db-cluster  --db-cluster-identifier YOUR_CLUSTER_NAME \
+    --enable-http-endpoint \
+    --apply-immediately
+
+aws rds modify-db-cluster  --db-cluster-identifier database-1  --enable-http-endpoint  --apply-immediately
+
+python -c "import socket; s=socket.create_connection(('database-1.cluster-c560wq46g27z.us-west-2.rds.amazonaws.com',5432),10); print('ok')"
+python -c "import socket; socket.create_connection(('YOUR_RDS_ENDPOINT',5432),10); print('connected')"
+
+--
+Have to open RDS inbound rules:
+1) kubectl get pod flask-app-57c45796fb-rbpsh -o wide
+    NAME                         READY   STATUS    RESTARTS   AGE   IP          NODE                                              NOMINATED NODE   READINESS GATES
+    flask-app-57c45796fb-rbpsh   1/1     Running   0          24m   10.0.2.77   fargate-ip-10-0-2-77.us-west-2.compute.internal   <none>           <none>
+
+2) Use the pod IP to find the Fargate ENI
+aws ec2 describe-network-interfaces  --filters "Name=private-ip-address,Values=<P O D _ I P>"  --query "NetworkInterfaces[*].{ENI:NetworkInterfaceId,Groups:Groups,Subnet:SubnetId,Vpc:VpcId,Description:Description}"
+aws ec2 describe-network-interfaces   --filters "Name=private-ip-address,Values=10.0.2.77  "   --query "NetworkInterfaces[*].{ENI:NetworkInterfaceId,Groups:Groups,Subnet:SubnetId,Vpc:VpcId,Description:Description}"
+[
+    {
+        "ENI": "eni-063a652011ab1aa93",
+        "Groups": [
+            {
+                "GroupId": "sg-050aea876fc7c5543",                            <<=== copy this
+                "GroupName": "eks-cluster-sg-lab-eks-64876467"
+            }
+        ],
+        "Subnet": "subnet-09f2afa46674f5472",
+        "Vpc": "vpc-019c7005e2366e6bd",
+        "Description": "57f93b8935fc4fcfa28f0376e25c8720"
+    }
+]
+
+3) Then add this to the RDS security group inbound rule:
+    Type: PostgreSQL
+    Port: 5432
+    Source: sg-050aea876fc7c5543                            <<=== copy this
+4) 
+Then test again from the pod:
+kubectl exec -it flask-app-57c45796fb-rbpsh -- python -c "import socket; socket.create_connection(('database-1.cluster-c560wq46g27z.us-west-2.rds.amazonaws.com',5432),10); print('ok')"
+============================
+next stage FE
+kubectl patch ingress frontend-app-ingress -n default -p "{\"metadata\":{\"finalizers\":[]}}" --type=merge
+kubectl delete ingress frontend-app-ingress
+helm upgrade frontend-app .\frontend-chart
+kubectl annotate ingress frontend-app-ingress  -n default force-reconcile="%random%" --overwrite
+
+k get ingress
+
+check ALB controller HTTPS error:
+kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller --since=10m | findstr /i "CreateListener Certificate FailedDeployModel"
+
+Restart controller:
+kubectl delete pod -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+kubectl get pods -n kube-system | findstr aws-load-balancer
+kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller --tail=100
+
+
+
+aws elbv2 describe-load-balancers --region us-west-2 --query "LoadBalancers[*].[LoadBalancerName,DNSName,LoadBalancerArn,State.Code]"
+aws elbv2 describe-listeners --region us-west-2 --load-balancer-arn arn:aws:elasticloadbalancing:us-west-2:316336724953:loadbalancer/app/k8s-default-frontend-1f9e624fc5/eaae57a286aa8bf3  --query "Listeners[*].[Port,Protocol]"
+
+openssl req -x509 -nodes -days 365  -newkey rsa:2048  -keyout frontend-alb.key  -out frontend-alb.crt  -subj "/CN=internal-k8s-default-frontend-1f9e624fc5-1576933644.us-west-2.elb.amazonaws.com"  -addext "subjectAltName=DNS:internal-k8s-default-frontend-1f9e624fc5-1576933644.us-west-2.elb.amazonaws.com"
+
+
+python -c "import socket; s=socket.create_connection(('http://flask-app-service.default.svc.cluster.local',443),10); print('ok')"
+
+============================
