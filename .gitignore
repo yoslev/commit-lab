@@ -2,5 +2,6 @@
 **/.terraform/*
 *.tfstate
 *.tfstate.*
-.terraform.lock.hcl"candidate02_accessKeys.csv" 
+.terraform.lock.hcl
+"candidate02_accessKeys.csv" 
 "notes.txt" 
