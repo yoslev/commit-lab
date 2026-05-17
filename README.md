@@ -140,6 +140,18 @@ Example CIDR:
 ```text
 10.0.0.0/16
 ```
+
+Both subnets do not have public ip:
+```text
+resource "aws_subnet" "private_a" {
+  cidr_block              = "10.0.1.0/24"
+  map_public_ip_on_launch = false         <--
+
+resource "aws_subnet" "private_b" {
+  cidr_block              = "10.0.2.0/24"
+  map_public_ip_on_launch = false         <--
+
+```
 # Network topology design
 
 ```text
@@ -332,12 +344,18 @@ http://flask-app-service.default.svc.cluster.local
 ```
 
 # Route53 DNS
-Hosted zone name: lab.local
+Route53 CNAME dns records were added to improve surf experience.
+
+
+Route53 Hosted zone name: lab.local
+
 ## Records:
 ```text
-flaskapp.lab.local           - to BE listener
-lab-commit-task-fe.lab.local - to FE listener
+flaskapp.lab.local           - to BE listener, https://flaskapp.lab.local from Windows ec2 instance only
+lab-commit-task-fe.lab.local - to FE listener, https://lab-commit-task-fe.lab.local from Windows ec2 instance only
 ```
+
+You can surf the above url's from Windows ec2 instance only as network is closed.
 ---
 
 # ArgoCD
