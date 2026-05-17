@@ -4,7 +4,6 @@ Networking Overview
 
 
                                                                    ┌─────────────┐
-
                                                                    │ My home PC  │ aws ssm start-session --target..
                                                                    └─────────────┘
                                                                         │
