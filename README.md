@@ -7,9 +7,52 @@ Networking Overview in file: Net-topology-design.txt (show in Notepad++ only)
 
 ## Overview
 
-This lab demonstrates a private AWS Kubernetes platform running on Amazon EKS with AWS Fargate, internal Application Load Balancers (ALB), HTTPS termination using ACM certificates, Helm deployments, ArgoCD, and Flask-based microservices.
+This lab demonstrates a private AWS Kubernetes platform running on Amazon EKS with AWS Fargate nodes, 
+internal Application Load Balancers (ALB)
+HTTPS termination using ACM certificates
+Helm deployments
+Python Flask-based microservices.
+
+Application is comrised of:
+ - Frontend: Python Flask application 
+ - Backend : Python Flask application 
+ - Postgres RDS DB aws service
+ both Python applications packed in a docker image loaded ito aws ecr using Helm chart.
 
 The environment was designed as a fully private architecture using internal networking and VPC endpoints.
+
+All resource are built by Terraform.
+A windows ec2 machine is also a part of this 
+
+## Folders structure
+Folders:
+App-backend: backend application code (app.py) + Dockerfile + Python requirements.txt + b.bat (to build and puch into ECR)
+App-backend-Helm: backend application Helm charts + h-inst.bat + h-up.bat with helm install and helm upgrade commands
+App-frontend: frontend application code (app.py) + Dockerfile + Python requirements.txt + b.bat (to build and puch into ECR)
+App-frontend-Helm: frontend application Helm charts + h-inst.bat + h-up.bat with helm install and helm upgrade commands
+argocd: To install argocd
+           argocd-ingress.yaml + argocd-install.yaml 
+		   inst-argocd.bat + inst-ingress.bat 
+		   images were pulled and pushed into ECR
+aws-lab-TF: aws resources creation Terraform files
+aws-logging: ConfigMap to add cloudwatch logs
+cert: self signed certificates generated
+monitorring: values.yaml file to install prometheus and 
+             TEST CHART
+               helm template monitoring prometheus-community/kube-prometheus-stack -n monitoring -f monitoring-values.yaml 
+             
+             DEPLOY
+               helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f monitoring-values.yaml
+             
+             IF FAILES:
+               kubectl delete job monitoring-kube-prometheus-admission-create -n monitoring
+               kubectl delete job monitoring-kube-prometheus-admission-patch -n monitoring --ignore-not-found
+               helm uninstall monitoring -n monitoring
+               kubectl delete ns monitoring
+             
+             helm template monitoring prometheus-community/kube-prometheus-stack -n monitoring -f monitoring-values.yaml 
+             helm upgrade --install monitoring prometheus-community/kube-prometheus-stack -n monitoring -f monitoring-values.yaml --create-namespace 
+
 
 ---
 
