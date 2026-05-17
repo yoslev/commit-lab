@@ -12,10 +12,10 @@ Networking Overview
  │     VPC (lab-vpc)                              │ (10.0.0.0/16)       │
  │                           ┌────────────────┐   │                     │
  │                           │ ec2 windows PC │   │                     │
- │                           └────────────────┘   │                     │ 
- │                                                │                     │ 
- │                                                │                     │ 
- │  Private Subnets                               │                     │ 
+ │                           └────────────────┘   │                     │
+ │                                                │                     │
+ │                                                │                     │
+ │  Private Subnets                               │                     │
  │  lab-private-a lab-private-b                   │                     ▼
  │  (10.0.1.0/24, 10.0.2.0/24) --------------------------------------> SSM
  │                                                │
