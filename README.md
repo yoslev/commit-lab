@@ -332,6 +332,13 @@ Example:
 http://flask-app-service.default.svc.cluster.local
 ```
 
+# Route53 DNS
+Hosted zone name: lab.local
+## Records:
+```text
+flaskapp.lab.local           - to BE listener
+lab-commit-task-fe.lab.local - to FE listener
+```
 ---
 
 # ArgoCD
