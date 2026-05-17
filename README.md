@@ -26,6 +26,7 @@ A windows ec2 machine is also a part of this
 
 ## Folders structure
 Folders:
+
 App-backend: backend application code (app.py) + Dockerfile + Python requirements.txt + b.bat (to build and puch into ECR)
 
 App-backend-Helm: backend application Helm charts + h-inst.bat + h-up.bat with helm install and helm upgrade commands
@@ -98,45 +99,6 @@ Windows EC2 Instance
 +----------------------+
 ```
 
-# Network
-
-```text
-                                                                   ┌─────────────┐
-                                                                   │ My home PC  │ aws ssm start-session --target..
-                                                                   └─────────────┘
-                                                                        │
-                                                                        │
- ┌────────────────────────────────────────────────┐                     │
- │     VPC (lab-vpc)                              │ (10.0.0.0/16)       │
- │                           ┌────────────────┐   │                     │
- │                           │ ec2 windows PC │   │                     │
- │                           └────────────────┘   │                     │
- │                                                │                     │
- │                                                │                     │
- │  Private Subnets                               │                     │
- │  lab-private-a lab-private-b                   │                     ▼
- │  (10.0.1.0/24, 10.0.2.0/24) --------------------------------------> SSM
- │                                                │
- │                                              ──> VPC Endpoints → ec2, ssm, ssmmessages, ec2messages, ecr_api, ecr_dkr, s3, elasticloadbalancing, sts
- │                                                │
- │              k8s cluster                       │
- │              "lab-eks"                         │
- │  ┌───────────────────┐ ┌─────────────────────┐ │
- │  │ 2 pods: flask-app │ │ 1 pod: frontend-app │ │
- │  └───────────────────┘ └─────────────────────┘ │
- └────────────────────────────────────────────────┘
-     ▲                                    ▲ 
-     │                                    │
-    TG k8s-default-flaskapp              TG k8s-default-frontend
-     ▲                                    ▲
-     │                                    │
-┌─────────┐                           ┌─────────┐
-│  BE ALB │ k8s-default-flaskapp (BE) │  FE ALB │ k8s-default-frontend (FE)
-└─────────┘                           └─────────┘
-     ▲ ALB listener: port 443             ▲ ALB listener: port 443
-     │                                    │
-
-```
 ---
 
 # Components
@@ -177,6 +139,45 @@ Example CIDR:
 
 ```text
 10.0.0.0/16
+```
+# Network topology design
+
+```text
+                                                                   ┌─────────────┐
+                                                                   │ My home PC  │ aws ssm start-session --target..
+                                                                   └─────────────┘
+                                                                        │
+                                                                        │
+ ┌────────────────────────────────────────────────┐                     │
+ │     VPC (lab-vpc)                              │ (10.0.0.0/16)       │
+ │                           ┌────────────────┐   │                     │
+ │                           │ ec2 windows PC │   │                     │
+ │                           └────────────────┘   │                     │
+ │                                                │                     │
+ │                                                │                     │
+ │  Private Subnets                               │                     │
+ │  lab-private-a lab-private-b                   │                     ▼
+ │  (10.0.1.0/24, 10.0.2.0/24) --------------------------------------> SSM
+ │                                                │
+ │                                              ──> VPC Endpoints → ec2, ssm, ssmmessages, ec2messages, ecr_api, ecr_dkr, s3, elasticloadbalancing, sts
+ │                                                │
+ │              k8s cluster                       │
+ │              "lab-eks"                         │
+ │  ┌───────────────────┐ ┌─────────────────────┐ │
+ │  │ 2 pods: flask-app │ │ 1 pod: frontend-app │ │
+ │  └───────────────────┘ └─────────────────────┘ │
+ └────────────────────────────────────────────────┘
+     ▲                                    ▲ 
+     │                                    │
+    TG k8s-default-flaskapp              TG k8s-default-frontend
+     ▲                                    ▲
+     │                                    │
+┌─────────┐                           ┌─────────┐
+│  BE ALB │ k8s-default-flaskapp (BE) │  FE ALB │ k8s-default-frontend (FE)
+└─────────┘                           └─────────┘
+     ▲ ALB listener: port 443             ▲ ALB listener: port 443
+     │                                    │
+
 ```
 
 ---
