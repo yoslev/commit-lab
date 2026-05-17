@@ -356,6 +356,41 @@ lab-commit-task-fe.lab.local - to FE listener, https://lab-commit-task-fe.lab.lo
 ```
 
 You can surf the above url's from Windows ec2 instance only as network is closed.
+
+## Windows EC2 instance and connection:
+This local private network EC2 instance allows to a
+```text
+flaskapp.lab.local           - to BE listener, https://flaskapp.lab.local from Windows ec2 instance only
+lab-commit-task-fe.lab.local - to FE listener, https://lab-commit-task-fe.lab.local from Windows ec2 instance only
+```
+
+To connect
+
+open a remote management session to the EC2 instance through AWS Systems Manager Session Manager.
+format: aws ssm start-session --target <windows-instance-id>
+actual: aws ssm start-session --target  i-08ca2b292fedc5db2
+   You’ll get a PowerShell terminal into the Windows machine.
+
+To see full Windows GUI:
+aws ssm start-session   --target i-08ca2b292fedc5db2   --document-name AWS-StartPortForwardingSession   --parameters "{\"portNumber\":[\"3389\"],\"localPortNumber\":[\"13389\"]}"
+
+Then:
+
+keep that terminal open
+open Windows Remote Desktop (mstsc)
+connect to: localhost:13389
+
+RUN: 
+   mstsc 
+      localhost:13389
+      Administrator / AwsLab123!
+
+    toggle key:
+      Ctrl + Alt + FN + Break
+
+Then you’ll see the actual Windows desktop and can open a browser.
+On that particular Windows Edge browserm urls are save on browser taskbar.
+
 ---
 
 # ArgoCD
