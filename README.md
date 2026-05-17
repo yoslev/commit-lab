@@ -281,17 +281,26 @@ Each chart contains:
 ---
 
 # Ingress Configuration
+Ingress annotations helps aws ALB controller to build ALB listeners, target groups, security-group, etc.. and assign certificates (self signed)
+As ingress is annotated:
+```text
+        kubectl annotate ingress flask-app-ingress -n default force-reconcile="%time%" --overwrite
+```
+ALB controller is triggered to configure.
 
-Example ingress annotations:
+Ingress annotations:
 
 ```yaml
 alb.ingress.kubernetes.io/scheme: internal
 alb.ingress.kubernetes.io/target-type: ip
-alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
-alb.ingress.kubernetes.io/certificate-arn: <ACM_CERT_ARN>
-alb.ingress.kubernetes.io/ssl-redirect: "443"
 alb.ingress.kubernetes.io/backend-protocol: HTTP
 alb.ingress.kubernetes.io/healthcheck-path: /health
+alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
+alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:316336724953:certificate/03b53f8b-cd37-452f-a5ad-109d549ffda2
+alb.ingress.kubernetes.io/ssl-redirect: "443"
+
 ```
 
 ---
