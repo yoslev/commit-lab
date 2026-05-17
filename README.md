@@ -1,7 +1,10 @@
 Solution (Y.Lev)
 
 Networking Overview
+
+
                                                                    ┌─────────────┐
+
                                                                    │ My home PC  │ aws ssm start-session --target..
                                                                    └─────────────┘
                                                                         │
