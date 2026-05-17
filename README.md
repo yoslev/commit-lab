@@ -27,16 +27,25 @@ A windows ec2 machine is also a part of this
 ## Folders structure
 Folders:
 App-backend: backend application code (app.py) + Dockerfile + Python requirements.txt + b.bat (to build and puch into ECR)
+
 App-backend-Helm: backend application Helm charts + h-inst.bat + h-up.bat with helm install and helm upgrade commands
+
 App-frontend: frontend application code (app.py) + Dockerfile + Python requirements.txt + b.bat (to build and puch into ECR)
+
 App-frontend-Helm: frontend application Helm charts + h-inst.bat + h-up.bat with helm install and helm upgrade commands
+
 argocd: To install argocd
            argocd-ingress.yaml + argocd-install.yaml 
 		   inst-argocd.bat + inst-ingress.bat 
 		   images were pulled and pushed into ECR
+		   (argoCD was not used yet)
+		   
 aws-lab-TF: aws resources creation Terraform files
+
 aws-logging: ConfigMap to add cloudwatch logs
+
 cert: self signed certificates generated
+
 monitorring: values.yaml file to install prometheus and 
              TEST CHART
                helm template monitoring prometheus-community/kube-prometheus-stack -n monitoring -f monitoring-values.yaml 
