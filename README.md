@@ -7,7 +7,7 @@ Networking Overview in file: Net-topology-design.txt (show in Notepad++ only)
 
 ## Overview
 
-This lab demonstrates a private AWS Kubernetes platform running on Amazon EKS with AWS Fargate nodes, 
+This lab demonstrates a private AWS Kubernetes platform running on Amazon EKS with AWS 'Fargate type nodes' ("serverless" not ec2 nodes), 
 internal Application Load Balancers (ALB)
 HTTPS termination using ACM certificates
 Helm deployments
@@ -106,7 +106,7 @@ Windows EC2 Instance
 ## AWS Infrastructure
 
 - Amazon EKS
-- AWS Fargate
+- AWS 'Fargate type nodes'
 - Internal Application Load Balancers
 - AWS ACM
 - VPC Endpoints
@@ -194,7 +194,7 @@ Private VPC endpoints configured for:
 - STS
 - CloudWatch Logs
 
-This enabled fully private Fargate networking and image pulls.
+This enabled fully private Fargate networking and image pulls from ECR.
 
 ---
 
@@ -207,7 +207,6 @@ Fargate profiles configured for:
 - kube-system
 - default
 - argocd
-
 ---
 
 # AWS Load Balancer Controller
@@ -298,7 +297,7 @@ alb.ingress.kubernetes.io/healthcheck-path: /health
 alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
 alb.ingress.kubernetes.io/manage-backend-security-group-rules: "true"
 alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
-alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:316336724953:certificate/03b53f8b-cd37-452f-a5ad-109d549ffda2
+alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-west-2:123456789012:certificate/03b53f8b-cd37-452f-a5ad-109d549ffda2
 alb.ingress.kubernetes.io/ssl-redirect: "443"
 
 ```
@@ -365,10 +364,21 @@ Images:
 ---
 
 # Troubleshooting Performed
+Overall
+
+As network is provate imagse that could not be pulled directly into EKS 'Fargate type nodes' were manually puslled, tagged and pushed into ECR.
 
 ## CoreDNS Scheduling Issues
 
-Resolved Fargate scheduling and taint problems.
+Resolved Fargate scheduling and taint problems to load Prometheus/Grafana.
+Added         
+```text
+tolerations:
+          - operator: Exists
+```
+into modules in monitoring-values.yaml 
+
+Resolved 'too many nodes' issue by commenting out modules.
 
 ---
 
