@@ -162,14 +162,14 @@ resource "aws_subnet" "private_b" {
                                                                         │
  ┌────────────────────────────────────────────────┐                     │
  │     VPC (lab-vpc)                              │ (10.0.0.0/16)       │
- │                           ┌────────────────┐   │                     │
- │                           │ ec2 windows PC │   │                     │
- │                           └────────────────┘   │                     │
- │                                                │                     │
- │                                                │                     │
- │  Private Subnets                               │                     │
- │  lab-private-a lab-private-b                   │                     ▼
- │  (10.0.1.0/24, 10.0.2.0/24) --------------------------------------> SSM
+ │                           ┌────────────────┐   │                     ▼
+ │                           │ ec2 windows PC │----------------------> SSM
+ │                           └────────────────┘   │ ec2 connects ssm on startup
+ │                                                │
+ │                                                │
+ │  Private Subnets                               │
+ │  lab-private-a lab-private-b                   │
+ │  (10.0.1.0/24, 10.0.2.0/24)                    │
  │                                                │
  │                                              ──> VPC Endpoints → ec2, ssm, ssmmessages, ec2messages, ecr_api, ecr_dkr, s3, elasticloadbalancing, sts
  │                                                │
