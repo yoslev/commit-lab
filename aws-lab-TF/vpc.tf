@@ -1,4 +1,5 @@
 # vpc.tf
+
 resource "aws_vpc" "lab" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
@@ -38,6 +39,7 @@ resource "aws_subnet" "private_b" {
   }
 }
 
+# ROUTE TABLE
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.lab.id
 
