@@ -484,8 +484,6 @@ kubectl delete pod -n kube-system -l app.kubernetes.io/name=aws-load-balancer-co
 kubectl get pods -n kube-system | findstr aws-load-balancer
 kubectl logs -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller --tail=100
 
-
-
 aws elbv2 describe-load-balancers --region us-west-2 --query "LoadBalancers[*].[LoadBalancerName,DNSName,LoadBalancerArn,State.Code]"
 aws elbv2 describe-listeners --region us-west-2 --load-balancer-arn arn:aws:elasticloadbalancing:us-west-2:316336724953:loadbalancer/app/k8s-default-frontend-1f9e624fc5/eaae57a286aa8bf3  --query "Listeners[*].[Port,Protocol]"
 
@@ -494,4 +492,6 @@ openssl req -x509 -nodes -days 365  -newkey rsa:2048  -keyout frontend-alb.key  
 
 python -c "import socket; s=socket.create_connection(('http://flask-app-service.default.svc.cluster.local',443),10); print('ok')"
 
+HTTPS:
+   https://lab-commit-task-fe.lab.local
 ============================
