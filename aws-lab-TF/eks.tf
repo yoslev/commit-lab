@@ -15,7 +15,7 @@ resource "aws_eks_cluster" "lab" {
   ]
 }
 
-#--- for Fargate (eks + no worker nodes)
+#--- for Fargate (eks + no EC2 worker nodes)
 resource "aws_eks_fargate_profile" "default" {
   cluster_name           = aws_eks_cluster.lab.name
   fargate_profile_name   = "lab-fargate"

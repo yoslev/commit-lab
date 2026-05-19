@@ -1,5 +1,5 @@
 # sts-endpoint.tf
-# For private Fargate pod to access to AWS STS for IRSA
+# For private Fargate pod to access to AWS STS for IRSA - IAM Roles for Service Accounts
 # To solve Problem: Ingress cannot assign an address
 
 resource "aws_vpc_endpoint" "sts" {
