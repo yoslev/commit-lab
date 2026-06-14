@@ -1,9 +1,11 @@
-Solution (Y.Lev)
 
-Networking Overview in file: Net-topology-design.txt (show in Notepad++ only)
+17-05-2026
+Solution (Y.Lev) For Commit home lab 
 
+Details in file: see AWS Lab.docx
+Networking Overview in : README.md
 
-# EKS Fargate Microservices Lab
+# EKS / Fargate Microservices Lab
 
 ## Overview
 
